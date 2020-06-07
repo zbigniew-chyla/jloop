@@ -12,9 +12,9 @@ public final class BasicEventLoop implements EventLoop {
     private long time;
 
 
-    BasicEventLoop() {
+    BasicEventLoop(long initTime) {
         tasksScheduler = new TasksScheduler();
-        time = MonotonicClock.getTime();
+        time = initTime;
     }
 
 
