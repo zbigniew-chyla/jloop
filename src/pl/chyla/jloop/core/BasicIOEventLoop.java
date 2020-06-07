@@ -104,6 +104,6 @@ public final class BasicIOEventLoop implements IOEventLoop {
 
     @Override
     public long getTime() {
-        return subLoop.getTime();
+        return time;
     }
 }
