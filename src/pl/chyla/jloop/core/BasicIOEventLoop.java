@@ -29,8 +29,8 @@ public final class BasicIOEventLoop implements IOEventLoop {
         selector = Selector.open();
         watchesManagers = new HashMap<SelectableChannel, ChannelWatchesManager>();
         clearedWatchesManagers = new HashSet<ChannelWatchesManager>();
-        subLoop = new BasicEventLoop();
-        time = MonotonicClock.getTime();
+        subLoop = new BasicEventLoop(MonotonicClock.getTime());
+        time = subLoop.getTime();
     }
 
 
