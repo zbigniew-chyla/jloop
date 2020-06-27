@@ -6,6 +6,7 @@
 package pl.chyla.jloop.core;
 
 import java.nio.channels.SelectableChannel;
+import pl.chyla.jloop.utils.ValueBox;
 
 
 public interface IOEventLoop extends EventLoop {
@@ -15,12 +16,13 @@ public interface IOEventLoop extends EventLoop {
 
     default ActivityHandle addOneShotIOWatch(SelectableChannel channel, IOWatchMode mode, Runnable notifyAction)
     {
-        ActivityHandle[] handleContainer = new ActivityHandle[1];
-        handleContainer[0] = addIOWatch(
-            channel, mode, () -> {
-                handleContainer[0].deactivate();
-                notifyAction.run();
-            });
-        return handleContainer[0];
+        ValueBox<ActivityHandle> handleBox = new ValueBox<ActivityHandle>();
+        handleBox.setValue(
+            addIOWatch(
+                channel, mode, () -> {
+                    handleBox.getValue().deactivate();
+                    notifyAction.run();
+                }));
+        return handleBox.getValue();
     }
 }

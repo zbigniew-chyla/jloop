@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import pl.chyla.jloop.utils.ValueBox;
 
 
 public final class BasicIOEventLoop implements IOEventLoop {
@@ -104,11 +105,12 @@ public final class BasicIOEventLoop implements IOEventLoop {
         }
         ChannelWatchesManager watchesManager = watchesManagers.get(channel);
         if (watchesManager == null) {
-            ChannelWatchesManager[] watchesManagerContainer = new ChannelWatchesManager[1];
-            watchesManager = new ChannelWatchesManager(
-                makeEmptySelectionKey(channel),
-                () -> clearedWatchesManagers.add(watchesManagerContainer[0]));
-            watchesManagerContainer[0] = watchesManager;
+            ValueBox<ChannelWatchesManager> watchesManagerBox = new ValueBox<ChannelWatchesManager>();
+            watchesManagerBox.setValue(
+                new ChannelWatchesManager(
+                    makeEmptySelectionKey(channel),
+                    () -> clearedWatchesManagers.add(watchesManagerBox.getValue())));
+            watchesManager = watchesManagerBox.getValue();
             watchesManagers.put(channel, watchesManager);
         }
 
