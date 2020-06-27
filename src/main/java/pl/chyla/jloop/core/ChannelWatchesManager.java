@@ -72,7 +72,9 @@ final class ChannelWatchesManager {
             }
         }
 
-        selectionKey.interestOps(selectionOps);
+        if (selectionKey.isValid()) {
+            selectionKey.interestOps(selectionOps);
+        }
         if (selectionOps == 0) {
             clearedListener.run();
         }
