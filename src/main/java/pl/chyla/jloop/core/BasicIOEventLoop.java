@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 
 public final class BasicIOEventLoop implements IOEventLoop {
@@ -22,6 +23,8 @@ public final class BasicIOEventLoop implements IOEventLoop {
     private final Map<SelectableChannel, ChannelWatchesManager> watchesManagers;
     private final Set<ChannelWatchesManager> clearedWatchesManagers;
     private final BasicEventLoop subLoop;
+    private final Consumer<Runnable> mtExecutor;
+    private EventLoopMTGateway mtGateway;
     private long time;
 
 
@@ -30,6 +33,17 @@ public final class BasicIOEventLoop implements IOEventLoop {
         watchesManagers = new HashMap<SelectableChannel, ChannelWatchesManager>();
         clearedWatchesManagers = new HashSet<ChannelWatchesManager>();
         subLoop = new BasicEventLoop(MonotonicClock.getTime());
+        mtExecutor = (task) -> {
+            if (mtGateway == null) {
+                try {
+                    mtGateway = new EventLoopMTGateway(this);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            mtGateway.enqueueTask(task);
+        };
+        mtGateway = null;
         time = subLoop.getTime();
     }
 
@@ -63,6 +77,20 @@ public final class BasicIOEventLoop implements IOEventLoop {
             }
             selector.selectedKeys().clear();
         }
+    }
+
+
+    /**
+     * Returns tasks executor that can be used from any thread.
+     *
+     * Returns {@link Consumer} object that can be used from any thread to start a task in the
+     * event loop (on its thread). Calling {@link Consumer#accept(Object))} queues a task for
+     * execution.
+     *
+     * @return multi-thread safe tasks executor
+     */
+    public Consumer<Runnable> getMtExecutor() {
+        return mtExecutor;
     }
 
 
