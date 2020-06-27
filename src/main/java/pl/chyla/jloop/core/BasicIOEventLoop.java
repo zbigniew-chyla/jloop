@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
+import pl.chyla.jloop.utils.ValueBox;
 
 
 public final class BasicIOEventLoop implements IOEventLoop {
@@ -22,6 +24,8 @@ public final class BasicIOEventLoop implements IOEventLoop {
     private final Map<SelectableChannel, ChannelWatchesManager> watchesManagers;
     private final Set<ChannelWatchesManager> clearedWatchesManagers;
     private final BasicEventLoop subLoop;
+    private final Consumer<Runnable> mtExecutor;
+    private EventLoopMTGateway mtGateway;
     private long time;
 
 
@@ -30,6 +34,17 @@ public final class BasicIOEventLoop implements IOEventLoop {
         watchesManagers = new HashMap<SelectableChannel, ChannelWatchesManager>();
         clearedWatchesManagers = new HashSet<ChannelWatchesManager>();
         subLoop = new BasicEventLoop(MonotonicClock.getTime());
+        mtExecutor = (task) -> {
+            if (mtGateway == null) {
+                try {
+                    mtGateway = new EventLoopMTGateway(this);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            mtGateway.enqueueTask(task);
+        };
+        mtGateway = null;
         time = subLoop.getTime();
     }
 
@@ -66,15 +81,36 @@ public final class BasicIOEventLoop implements IOEventLoop {
     }
 
 
+    /**
+     * Returns tasks executor that can be used from any thread.
+     *
+     * Returns {@link Consumer} object that can be used from any thread to start a task in the
+     * event loop (on its thread). Calling {@link Consumer#accept(Object))} queues a task for
+     * execution.
+     *
+     * @return multi-thread safe tasks executor
+     */
+    public Consumer<Runnable> getMtExecutor() {
+        return mtExecutor;
+    }
+
+
     @Override
     public ActivityHandle addIOWatch(SelectableChannel channel, IOWatchMode mode, Runnable notifyAction) {
+        if (!channel.isOpen()) {
+            throw new IllegalArgumentException("Adding IO watch for closed channel");
+        }
+        if (channel.isBlocking()) {
+            throw new IllegalArgumentException("Adding IO watch for channel in blocking mode");
+        }
         ChannelWatchesManager watchesManager = watchesManagers.get(channel);
         if (watchesManager == null) {
-            ChannelWatchesManager[] watchesManagerContainer = new ChannelWatchesManager[1];
-            watchesManager = new ChannelWatchesManager(
-                makeEmptySelectionKey(channel),
-                () -> clearedWatchesManagers.add(watchesManagerContainer[0]));
-            watchesManagerContainer[0] = watchesManager;
+            ValueBox<ChannelWatchesManager> watchesManagerBox = new ValueBox<ChannelWatchesManager>();
+            watchesManagerBox.setValue(
+                new ChannelWatchesManager(
+                    makeEmptySelectionKey(channel),
+                    () -> clearedWatchesManagers.add(watchesManagerBox.getValue())));
+            watchesManager = watchesManagerBox.getValue();
             watchesManagers.put(channel, watchesManager);
         }
 

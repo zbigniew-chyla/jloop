@@ -20,11 +20,7 @@ public final class Sockets {
 
 
     public static void forceClose(Closeable obj) {
-        try {
-            obj.close();
-        } catch (IOException e) {
-            // ignore
-        }
+        Closeables.forceClose(obj);
     }
 
 
