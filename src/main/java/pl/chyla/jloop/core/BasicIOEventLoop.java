@@ -99,6 +99,9 @@ public final class BasicIOEventLoop implements IOEventLoop {
         if (!channel.isOpen()) {
             throw new IllegalArgumentException("Adding IO watch for closed channel");
         }
+        if (channel.isBlocking()) {
+            throw new IllegalArgumentException("Adding IO watch for channel in blocking mode");
+        }
         ChannelWatchesManager watchesManager = watchesManagers.get(channel);
         if (watchesManager == null) {
             ChannelWatchesManager[] watchesManagerContainer = new ChannelWatchesManager[1];
