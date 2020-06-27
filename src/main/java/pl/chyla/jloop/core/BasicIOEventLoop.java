@@ -96,6 +96,9 @@ public final class BasicIOEventLoop implements IOEventLoop {
 
     @Override
     public ActivityHandle addIOWatch(SelectableChannel channel, IOWatchMode mode, Runnable notifyAction) {
+        if (!channel.isOpen()) {
+            throw new IllegalArgumentException("Adding IO watch for closed channel");
+        }
         ChannelWatchesManager watchesManager = watchesManagers.get(channel);
         if (watchesManager == null) {
             ChannelWatchesManager[] watchesManagerContainer = new ChannelWatchesManager[1];
