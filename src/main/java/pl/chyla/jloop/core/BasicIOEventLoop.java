@@ -24,8 +24,8 @@ public final class BasicIOEventLoop implements IOEventLoop {
     private final Map<SelectableChannel, ChannelWatchesManager> watchesManagers;
     private final Set<ChannelWatchesManager> clearedWatchesManagers;
     private final BasicEventLoop subLoop;
+    private final EventLoopMTGateway mtGateway;
     private final Consumer<Runnable> mtExecutor;
-    private EventLoopMTGateway mtGateway;
     private long time;
 
 
@@ -34,18 +34,11 @@ public final class BasicIOEventLoop implements IOEventLoop {
         watchesManagers = new HashMap<SelectableChannel, ChannelWatchesManager>();
         clearedWatchesManagers = new HashSet<ChannelWatchesManager>();
         subLoop = new BasicEventLoop(MonotonicClock.getTime());
+        time = subLoop.getTime();
+        mtGateway = new EventLoopMTGateway(this);
         mtExecutor = (task) -> {
-            if (mtGateway == null) {
-                try {
-                    mtGateway = new EventLoopMTGateway(this);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
             mtGateway.enqueueTask(task);
         };
-        mtGateway = null;
-        time = subLoop.getTime();
     }
 
 
